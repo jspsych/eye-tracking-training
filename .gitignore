@@ -174,3 +174,16 @@ cython_debug/
 .pypirc
 
 .DS_Store
+
+# Weights
+*.h5
+
+# wandb
+wandb/
+
+# images
+*.tar.gz
+analysis/single_eye_tfrecords/
+analysis_3_predictions/
+
+*.png
