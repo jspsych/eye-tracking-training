@@ -20,13 +20,10 @@ This repository contains machine learning models for gaze prediction (eye tracki
   - `full_model.weights.h5` - Saved model weights
 
 - **et_util/** - Custom utility modules for model training and evaluation
-  - `custom_layers.py` - Custom Keras layers (SimpleTimeDistributed, MaskedWeightedRidgeRegressionLayer, etc.)
+  - `custom_layers.py` - Custom Keras layers (SimpleTimeDistributed, MaskedWeightedRidgeRegressionLayer, MaskInspectorLayer)
   - `custom_loss.py` - Custom loss functions (normalized_weighted_euc_dist)
-  - `dataset_utils.py` - Dataset loading and processing utilities
-  - `embedding_preprocessing.py` - Preprocessing for eye image embeddings
-  - `experiment_utils.py` - Utilities for experiment tracking and configuration
-  - `model_analysis.py` - Model evaluation and visualization tools
-  - `model_layers.py` - Additional model layer utilities
+  - `dataset_utils.py` - Dataset loading, processing, and parsing utilities (process_tfr_to_tfds, parse_single_eye_tfrecord, rescale_coords_map)
+  - `model_analysis.py` - Model evaluation and visualization tools (plot_model_performance)
 
 ## Key Architecture Concepts
 
