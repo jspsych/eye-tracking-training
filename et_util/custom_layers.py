@@ -173,6 +173,103 @@ class MaskedWeightedRidgeRegressionLayer(keras.layers.Layer):
 
 
 @keras.saving.register_keras_serializable(package="et_util")
+class ResidualBlock(keras.layers.Layer):
+    """
+    ResNet-style residual block with LayerNorm instead of BatchNorm.
+
+    Architecture:
+        x -> Conv2D -> LN -> ReLU -> Conv2D -> LN -> Add(x) -> ReLU
+
+    If input/output channels differ, a 1x1 conv projection is applied to the skip.
+    Uses LayerNorm for consistent behavior and better Transformer compatibility.
+    """
+
+    def __init__(self, filters, stride=1, **kwargs):
+        super().__init__(**kwargs)
+        self.filters = filters
+        self.stride = stride
+
+    def build(self, input_shape):
+        input_filters = input_shape[-1]
+
+        self.conv1 = keras.layers.Conv2D(
+            self.filters, 3, strides=self.stride,
+            padding='same', use_bias=False
+        )
+        self.ln1 = keras.layers.LayerNormalization(epsilon=1e-6)
+        self.conv2 = keras.layers.Conv2D(
+            self.filters, 3, strides=1,
+            padding='same', use_bias=False
+        )
+        self.ln2 = keras.layers.LayerNormalization(epsilon=1e-6)
+
+        self.use_projection = (input_filters != self.filters) or (self.stride != 1)
+        if self.use_projection:
+            self.proj_conv = keras.layers.Conv2D(
+                self.filters, 1, strides=self.stride,
+                padding='same', use_bias=False
+            )
+            self.proj_ln = keras.layers.LayerNormalization(epsilon=1e-6)
+
+        super().build(input_shape)
+
+    def call(self, x, training=None):
+        out = self.conv1(x)
+        out = self.ln1(out)
+        out = keras.activations.relu(out)
+        out = self.conv2(out)
+        out = self.ln2(out)
+
+        if self.use_projection:
+            shortcut = self.proj_conv(x)
+            shortcut = self.proj_ln(shortcut)
+        else:
+            shortcut = x
+
+        out = keras.layers.Add()([out, shortcut])
+        out = keras.activations.relu(out)
+        return out
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"filters": self.filters, "stride": self.stride})
+        return config
+
+
+@keras.saving.register_keras_serializable(package="et_util")
+class AddPositionalEmbedding(keras.layers.Layer):
+    """
+    Adds learnable positional embeddings to a sequence of tokens.
+
+    Used in transformer architectures to inject positional information.
+    """
+
+    def __init__(self, num_positions, hidden_dim, **kwargs):
+        super().__init__(**kwargs)
+        self.num_positions = num_positions
+        self.hidden_dim = hidden_dim
+
+    def build(self, input_shape):
+        self.pos_embedding = self.add_weight(
+            name="pos_embedding",
+            shape=(1, self.num_positions, self.hidden_dim),
+            initializer=keras.initializers.RandomNormal(stddev=0.02),
+            trainable=True
+        )
+
+    def call(self, x):
+        return x + self.pos_embedding
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "num_positions": self.num_positions,
+            "hidden_dim": self.hidden_dim
+        })
+        return config
+
+
+@keras.saving.register_keras_serializable(package="et_util")
 class MaskInspectorLayer(keras.layers.Layer):
     """Debug utility layer that prints mask information during execution."""
 
