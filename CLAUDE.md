@@ -19,6 +19,12 @@ This repository contains machine learning models for gaze prediction (eye tracki
   - `single_eye_tfrecords/` - TFRecord files containing eye images, landmarks, and gaze coordinates
   - `full_model.weights.h5` - Saved model weights
 
+- **et_util/** - Custom utility modules for model training and evaluation
+  - `custom_layers.py` - Custom Keras layers (SimpleTimeDistributed, MaskedWeightedRidgeRegressionLayer, MaskInspectorLayer)
+  - `custom_loss.py` - Custom loss functions (normalized_weighted_euc_dist)
+  - `dataset_utils.py` - Dataset loading, processing, and parsing utilities (process_tfr_to_tfds, parse_single_eye_tfrecord, rescale_coords_map)
+  - `model_analysis.py` - Model evaluation and visualization tools (plot_model_performance)
+
 ## Key Architecture Concepts
 
 ### Model Architecture Overview
@@ -51,13 +57,12 @@ This project is designed to run in **Google Colab** and uses:
 - TensorFlow/Keras with Keras 3.x API
 - Weights & Biases (wandb) for experiment tracking
 - OSF (Open Science Framework) for dataset storage
-- Custom utilities from `eyetracking-utils` package (installed via git)
+- Custom utilities from the `et_util` package (included in this repository)
 
 ### Key Dependencies
 ```python
 # Installed in notebook cells
 osfclient
-git+https://github.com/jspsych/eyetracking-utils.git
 wandb
 keras
 keras-hub
