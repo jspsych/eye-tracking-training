@@ -10,7 +10,12 @@ import keras
 import numpy as np
 from typing import Dict, Optional, List
 
-from et_util.custom_layers import SimpleTimeDistributed, MaskedWeightedRidgeRegressionLayer
+from et_util.custom_layers import (
+    SimpleTimeDistributed,
+    MaskedWeightedRidgeRegressionLayer,
+    ResidualBlock,
+    AddPositionalEmbedding,
+)
 from et_util.custom_loss import normalized_weighted_euc_dist
 
 
@@ -172,6 +177,8 @@ def create_flexible_inference_model(
         "SimpleTimeDistributed": SimpleTimeDistributed,
         "MaskedWeightedRidgeRegressionLayer": MaskedWeightedRidgeRegressionLayer,
         "normalized_weighted_euc_dist": normalized_weighted_euc_dist,
+        "ResidualBlock": ResidualBlock,
+        "AddPositionalEmbedding": AddPositionalEmbedding,
     }
 
     # Load the trained model
