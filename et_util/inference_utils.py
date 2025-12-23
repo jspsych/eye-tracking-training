@@ -143,22 +143,15 @@ def _create_flexible_model_architecture(
 
 def create_flexible_inference_model(
     trained_model_path: str,
-    embedding_dim: int = 200,
-    ridge_regularization: float = 0.1,
-    densenet_stackwise_num_repeats: List[int] = [4, 4, 4],
 ) -> keras.Model:
     """
     Create a flexible inference model that accepts arbitrary point counts.
 
-    This function loads a trained model and creates a new model with dynamic
-    shapes, transferring the learned weights. The resulting model can process
-    any number of points at inference time.
+    This function loads a trained model and rewires it with new Input layers
+    that have flexible shapes. All trained layers and weights are preserved.
 
     Args:
         trained_model_path: Path to the saved .keras model file
-        embedding_dim: Embedding dimension (must match trained model, default 200)
-        ridge_regularization: Ridge regularization parameter (must match trained model, default 0.1)
-        densenet_stackwise_num_repeats: DenseNet configuration (must match trained model)
 
     Returns:
         A Keras model with flexible input shapes (None instead of fixed point counts)
@@ -187,32 +180,47 @@ def create_flexible_inference_model(
         custom_objects=custom_objects,
     )
 
-    # Create a new model with flexible shapes
-    flexible_model = _create_flexible_model_architecture(
-        embedding_dim=embedding_dim,
-        ridge_regularization=ridge_regularization,
-        densenet_stackwise_num_repeats=densenet_stackwise_num_repeats,
+    # Extract existing trained layers (they keep their weights)
+    image_embeddings_layer = trained_model.get_layer("Image_Embeddings")
+    calibration_weights_layer = trained_model.get_layer("Calibration_Weights")
+    regression_layer = trained_model.get_layer("Regression")
+
+    # Create new flexible inputs (None instead of fixed number like 144)
+    input_all_images = keras.layers.Input(
+        shape=(None, 36, 144, 1),
+        name="Input_All_Images"
+    )
+    input_all_coords = keras.layers.Input(
+        shape=(None, 2),
+        name="Input_All_Coords"
+    )
+    input_cal_mask = keras.layers.Input(
+        shape=(None,),
+        name="Input_Calibration_Mask",
     )
 
-    # Transfer weights from trained model to flexible model
-    # 1. Transfer embedding model weights
-    trained_embedding_layer = trained_model.get_layer("Image_Embeddings")
-    trained_embedding_model = trained_embedding_layer.layer
+    # Wire existing layers to new flexible inputs
+    all_embeddings = image_embeddings_layer(input_all_images)
+    calibration_weights = calibration_weights_layer(all_embeddings)
+    output = regression_layer([
+        all_embeddings,
+        input_all_coords,
+        calibration_weights,
+        input_cal_mask,
+    ])
 
-    flexible_embedding_layer = flexible_model.get_layer("Image_Embeddings")
-    flexible_embedding_model = flexible_embedding_layer.layer
-
-    flexible_embedding_model.set_weights(trained_embedding_model.get_weights())
-
-    # 2. Transfer calibration weights layer
-    trained_cal_weights = trained_model.get_layer("Calibration_Weights").get_weights()
-    flexible_model.get_layer("Calibration_Weights").set_weights(trained_cal_weights)
+    # Create new model with flexible inputs
+    flexible_model = keras.Model(
+        inputs=[input_all_images, input_all_coords, input_cal_mask],
+        outputs=output,
+        name="FlexibleGazeModel"
+    )
 
     # Compile without JIT for dynamic shape support
     flexible_model.compile(
         optimizer=keras.optimizers.Adam(),
         loss=normalized_weighted_euc_dist,
-        jit_compile=False,  # Critical for dynamic shapes
+        jit_compile=False,
     )
 
     return flexible_model
